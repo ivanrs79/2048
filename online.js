@@ -163,7 +163,7 @@ function setLobbyStatus(text) {
 }
 
 function showLobby(message = '') {
-  setLayout({ two: false, intro: MODES.online.intro, lobby: true });
+  setLayout({ versus: false, intro: MODES.online.intro, lobby: true });
   resetArena();
   roomInfoEl.hidden = true;
   createControlsEl.hidden = false;
@@ -276,21 +276,19 @@ function startOnlineRound() {
 function beginOnlineMatch(seed, matchRules) {
   rules = matchRules;
   setLayout({
-    two: true,
+    versus: true,
     intro: `${RULES[rules]} <span class="room-tag">Room ${net.code}</span>`,
   });
   resetArena();
   const me = addPlayer({
     game: new Game2048(4, seed),
     name: 'You',
-    keys: SOLO_KEYS,
     hint: '<strong>Arrow keys</strong>, <strong>WASD</strong> or swipe',
   });
   addPlayer({
     game: new RemoteBoard(4),
     name: 'Opponent',
-    keys: {},
-    hint: 'Live view of your opponent',
+    hint: 'Live view',
     remote: true,
   });
   players.forEach(p => refresh(p));

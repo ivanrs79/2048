@@ -120,20 +120,12 @@ const BEST_KEY = 'game2048-best';
 const MODE_KEY = 'game2048-mode';
 const ATTACK_MIN = 64;
 
-const PLAYERS = [
-  {
-    name: 'Player 1',
-    hint: '<strong>W A S D</strong>',
-    keys: { KeyW: 'up', KeyA: 'left', KeyS: 'down', KeyD: 'right' },
-  },
-  {
-    name: 'Player 2',
-    hint: '<strong>Arrow keys</strong>',
-    keys: { ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right' },
-  },
-];
-const SOLO_KEYS = { ...PLAYERS[0].keys, ...PLAYERS[1].keys };
+const KEYS = {
+  ArrowUp: 'up', ArrowLeft: 'left', ArrowDown: 'down', ArrowRight: 'right',
+  KeyW: 'up', KeyA: 'left', KeyS: 'down', KeyD: 'right',
+};
 
+// Online match rules, chosen by the host.
 const RULES = {
   race: 'First to <strong>2048</strong> wins. Get stuck and you lose!',
   attack: `Merge <strong>${ATTACK_MIN}+</strong> to drop stones on your rival. First to 2048 or last one standing wins!`,
@@ -141,8 +133,6 @@ const RULES = {
 
 const MODES = {
   solo: { intro: 'Join the tiles, get to <strong>2048!</strong>' },
-  race: { intro: RULES.race },
-  attack: { intro: RULES.attack },
   online: { intro: 'Play against a friend over the internet.' },
 };
 
@@ -153,9 +143,9 @@ const newGameBtn = document.getElementById('new-game');
 const template = document.getElementById('panel-template');
 
 let mode = null;
-let rules = null; // null (solo), 'race' or 'attack'
-let players = [];
-let outcome = null; // 2P only: null while playing, then { winner } or { draw: true }
+let rules = null; // null (solo), or the online match's 'race' / 'attack'
+let players = []; // solo: [me]; online: [me, opponent]
+let outcome = null; // online only: null while playing, then { winner } or { draw: true }
 let net = null; // OnlineSession while in online mode (see online.js)
 let best = Number(localStorage.getItem(BEST_KEY)) || 0;
 
@@ -180,12 +170,12 @@ function setMode(newMode, { restore = false } = {}) {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   }
   if (mode === 'online') showLobby();
-  else startLocalMatch(restore);
+  else startSolo(restore);
 }
 
-function setLayout({ two, intro, lobby = false }) {
-  containerEl.classList.toggle('two', two);
-  arenaEl.classList.toggle('two', two);
+function setLayout({ versus, intro, lobby = false }) {
+  containerEl.classList.toggle('versus', versus);
+  arenaEl.classList.toggle('versus', versus);
   introEl.innerHTML = intro;
   lobbyEl.hidden = !lobby;
   arenaEl.hidden = lobby;
@@ -199,12 +189,13 @@ function resetArena() {
   outcome = null;
 }
 
-function addPlayer({ game, name, keys, hint, remote = false }) {
+function addPlayer({ game, name, hint, remote = false }) {
   const panelEl = template.content.firstElementChild.cloneNode(true);
+  panelEl.classList.add(remote ? 'opponent' : 'me');
   arenaEl.appendChild(panelEl);
 
   const view = new BoardView(panelEl, game.size);
-  const player = { index: players.length, game, view, keys, remote };
+  const player = { index: players.length, game, view, remote };
   view.setPlayer(name, hint);
 
   addSwipe(view.boardEl, dir => move(player, dir));
@@ -218,32 +209,21 @@ function addPlayer({ game, name, keys, hint, remote = false }) {
   return player;
 }
 
-function startLocalMatch(restore = false) {
-  const solo = mode === 'solo';
-  rules = solo ? null : mode;
-  setLayout({ two: !solo, intro: MODES[mode].intro });
+function startSolo(restore = false) {
+  rules = null;
+  setLayout({ versus: false, intro: MODES.solo.intro });
   resetArena();
-
-  // Both boards share a seed so they get the same spawn sequence.
-  const seed = randomSeed();
-  if (solo) {
-    addPlayer({
-      game: (restore && loadSoloGame()) || new Game2048(4, seed),
-      name: '',
-      keys: SOLO_KEYS,
-      hint: 'Use <strong>arrow keys</strong> or <strong>WASD</strong> to move. On touch screens, swipe.',
-    });
-  } else {
-    for (const p of PLAYERS) {
-      addPlayer({ game: new Game2048(4, seed), name: p.name, keys: p.keys, hint: `${p.hint} or swipe on this board` });
-    }
-  }
-  players.forEach(p => refresh(p));
+  const player = addPlayer({
+    game: (restore && loadSoloGame()) || new Game2048(4),
+    name: '',
+    hint: 'Use <strong>arrow keys</strong> or <strong>WASD</strong> to move. On touch screens, swipe.',
+  });
+  refresh(player);
 }
 
 function newGame() {
   if (mode === 'online') requestRematch();
-  else startLocalMatch();
+  else startSolo();
 }
 
 // ---------- Turn handling ----------
@@ -253,16 +233,13 @@ function move(player, direction) {
   const result = player.game.move(direction);
   if (!result.moved) return;
 
-  const stones = rules === 'attack' ? result.merges.filter(v => v >= ATTACK_MIN).length : 0;
-  const opponent = players[1 - player.index];
   if (net) {
+    const stones = rules === 'attack' ? result.merges.filter(v => v >= ATTACK_MIN).length : 0;
     onlineMoved(player, result.removed, stones);
-  } else if (opponent) {
-    if (stones > 0) opponent.game.addStones(stones);
-    judge();
   }
 
   refresh(player, result.removed);
+  const opponent = players[1 - player.index];
   if (opponent) refresh(opponent);
 }
 
@@ -317,12 +294,11 @@ function refresh(player, removed) {
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target instanceof HTMLInputElement) return;
-  for (const player of players) {
-    const direction = player.keys[e.code];
-    if (!direction) continue;
-    e.preventDefault();
-    move(player, direction);
-  }
+  const direction = KEYS[e.code];
+  const me = players.find(p => !p.remote);
+  if (!direction || !me) return;
+  e.preventDefault();
+  move(me, direction);
 });
 
 function addSwipe(el, onSwipe) {
