@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container" id="container">
+    <header class="header">
+      <h1 class="title">2048</h1>
+      <nav class="modes" id="modes">
+        <button class="mode-btn" data-mode="solo">Solo</button>
+        <button class="mode-btn" data-mode="race">2P Race</button>
+        <button class="mode-btn" data-mode="attack">2P Attack</button>
+        <button class="mode-btn" data-mode="online">Online</button>
+      </nav>
+    </header>
+
+    <div class="toolbar">
+      <p class="intro" id="intro"></p>
+      <button class="btn" id="new-game">New Game</button>
+    </div>
+
+    <div class="arena" id="arena"></div>
+
+    <section class="lobby" id="lobby" hidden>
+      <div class="lobby-card">
+        <h2>Create a room</h2>
+        <p>Pick the rules, then share the code with a friend.</p>
+        <div class="rules-pick">
+          <label><input type="radio" name="online-rules" value="race" checked><span>Race</span></label>
+          <label><input type="radio" name="online-rules" value="attack"><span>Attack</span></label>
+        </div>
+        <button class="btn" id="create-room">Create room</button>
+        <div class="room-info" id="room-info" hidden>
+          <span class="room-label">Room code</span>
+          <span class="room-code" id="room-code"></span>
+          <button class="btn btn-small" id="copy-code">Copy</button>
+        </div>
+      </div>
+      <div class="lobby-card">
+        <h2>Join a room</h2>
+        <p>Enter the code your friend gave you.</p>
+        <input class="code-input" id="join-code" maxlength="5" placeholder="ABCDE" autocomplete="off" spellcheck="false">
+        <button class="btn" id="join-room">Join</button>
+      </div>
+      <p class="lobby-status" id="lobby-status" role="status"></p>
+    </section>
+  </main>
+
+  <template id="panel-template">
+    <section class="panel">
+      <div class="panel-header">
+        <span class="player-name"></span>
+        <div class="scores">
+          <div class="score-box">
+            <span class="score-label">Score</span>
+            <span class="score-value score"></span>
+          </div>
+          <div class="score-box best-box">
+            <span class="score-label">Best</span>
+            <span class="score-value best"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="board">
+        <div class="grid"></div>
+        <div class="tiles"></div>
+        <div class="overlay">
+          <p class="overlay-text"></p>
+          <div class="overlay-buttons">
+            <button class="btn keep-going">Keep going</button>
+            <button class="btn try-again"></button>
+          </div>
+        </div>
+      </div>
+
+      <p class="keys"></p>
+    </section>
+  </template>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="game.js"></script>
+  <script src="online.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
