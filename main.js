@@ -336,6 +336,10 @@ function joinFromInvite() {
 
 window.addEventListener('hashchange', joinFromInvite);
 
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js');
+}
+
 if (!joinFromInvite()) {
   const saved = localStorage.getItem(MODE_KEY);
   setMode(MODES[saved] ? saved : 'solo', { restore: true });

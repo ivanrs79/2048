@@ -1,0 +1,18 @@
+{
+  "id": "/2048/",
+  "name": "2048 Stone Clash Multiplayer",
+  "short_name": "Stone Clash",
+  "description": "Classic 2048 plus online duels against a friend: race to 2048 or drop stones on your rival's board.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf8ef",
+  "theme_color": "#bbada0",
+  "categories": ["games", "puzzle"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2048</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>2048 Stone Clash</title>
+  <meta name="description" content="Classic 2048 plus online duels against a friend.">
+  <meta name="theme-color" content="#bbada0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Stone Clash">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -56,6 +63,8 @@
       </div>
       <p class="lobby-status" id="lobby-status" role="status"></p>
     </section>
+
+    <footer class="footer"><a href="privacy.html">Privacy</a></footer>
   </main>
 
   <template id="panel-template">
@@ -90,8 +99,8 @@
     </section>
   </template>
 
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-  <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script src="vendor/peerjs.min.js"></script>
+  <script src="vendor/qrcode.js"></script>
   <script src="game.js"></script>
   <script src="online.js"></script>
   <script src="main.js"></script>

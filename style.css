@@ -24,11 +24,14 @@ body {
   font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
   display: flex;
   justify-content: center;
+  overscroll-behavior: none; /* no pull-to-refresh / bounce when installed as an app */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .container {
   width: min(92vw, 480px);
-  padding: 24px 0;
+  /* Keep clear of notches and home indicators on phones. */
+  padding: max(24px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
 }
 
 .container.versus {
@@ -348,6 +351,16 @@ body {
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+.footer {
+  margin-top: 32px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.footer a {
+  color: #a39588;
 }
 
 /* ---------- Online lobby ---------- */

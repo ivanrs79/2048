@@ -1,6 +1,6 @@
-# 2048
+# 2048 Stone Clash Multiplayer
 
-The classic 2048 puzzle in the browser, with online multiplayer.
+The classic 2048 puzzle in the browser, with online multiplayer. Installable as an app (PWA), and packaged for Android as a Trusted Web Activity.
 
 **Play:** https://ivanrs79.github.io/2048/
 
@@ -17,11 +17,14 @@ Controls: arrow keys, W A S D, or swipe.
 
 ## Run locally
 
-No build step or dependencies: open `index.html` in a browser. Online mode needs an internet connection.
+No build step: open `index.html` in a browser. Online mode needs an internet connection. The offline cache (service worker) only runs when the site is served over http(s).
 
 ## Files
 
 - `game.js`: game rules (no DOM)
-- `main.js`: rendering, input, local modes
+- `main.js`: rendering, input, solo mode
 - `online.js`: PeerJS networking and lobby
 - `index.html`, `style.css`: page and styles
+- `manifest.webmanifest`, `sw.js`, `icons/`: installable app + offline support
+- `privacy.html`: privacy policy
+- `vendor/`: [PeerJS](https://github.com/peers/peerjs) 1.5.4 and [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 1.4.4 (both MIT), bundled so the app works offline and can be packaged for app stores

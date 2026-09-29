@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Full-bleed background so the icon works as a maskable/adaptive icon.
+       Artwork stays inside the central safe zone (radius ~410). -->
+  <defs>
+    <pattern id="stripes" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="40" height="40" fill="#5d5750"/>
+      <rect width="20" height="40" fill="#534d47"/>
+    </pattern>
+  </defs>
+  <rect width="1024" height="1024" fill="#bbada0"/>
+  <rect x="222" y="222" width="490" height="490" rx="56" fill="#edc22e"/>
+  <text x="467" y="467" dy="0.35em" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-weight="bold" font-size="170" fill="#f9f6f2">2048</text>
+  <rect x="582" y="582" width="228" height="228" rx="40" fill="#bbada0"/>
+  <rect x="596" y="596" width="200" height="200" rx="32" fill="url(#stripes)"
+        stroke="#45403b" stroke-width="10"/>
+</svg>
