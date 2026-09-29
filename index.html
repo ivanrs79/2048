@@ -28,16 +28,26 @@
     <section class="lobby" id="lobby" hidden>
       <div class="lobby-card">
         <h2>Create a room</h2>
-        <p>Pick the rules, then share the code with a friend.</p>
-        <div class="rules-pick">
-          <label><input type="radio" name="online-rules" value="race" checked><span>Race</span></label>
-          <label><input type="radio" name="online-rules" value="attack"><span>Attack</span></label>
+        <div class="create-controls" id="create-controls">
+          <p>Pick the rules, then invite a friend with a link or QR code.</p>
+          <div class="rules-pick">
+            <label><input type="radio" name="online-rules" value="race" checked><span>Race</span></label>
+            <label><input type="radio" name="online-rules" value="attack"><span>Attack</span></label>
+          </div>
+          <button class="btn" id="create-room">Create room</button>
         </div>
-        <button class="btn" id="create-room">Create room</button>
         <div class="room-info" id="room-info" hidden>
-          <span class="room-label">Room code</span>
-          <span class="room-code" id="room-code"></span>
-          <button class="btn btn-small" id="copy-code">Copy</button>
+          <div class="room-code-row">
+            <span class="room-label">Room code</span>
+            <span class="room-code" id="room-code"></span>
+          </div>
+          <div class="room-qr" id="room-qr" role="img" aria-label="QR code for the invite link"></div>
+          <p class="room-qr-hint">Scan with a phone camera to join.</p>
+          <input class="invite-link" id="invite-link" readonly aria-label="Invite link">
+          <div class="share-buttons">
+            <button class="btn btn-small" id="copy-link">Copy link</button>
+            <button class="btn btn-small" id="share-link" hidden>Share…</button>
+          </div>
         </div>
       </div>
       <div class="lobby-card">
@@ -83,6 +93,7 @@
   </template>
 
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
   <script src="game.js"></script>
   <script src="online.js"></script>
   <script src="main.js"></script>

@@ -10,6 +10,9 @@
 //   rematch guest -> host   { round }
 
 const PEER_PREFIX = 'web2048-room-';
+// Invite links point here when the page itself isn't reachable by others
+// (opened from disk or localhost).
+const PUBLIC_URL = 'https://ivanrs79.github.io/2048/';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 5;
 const CONNECT_TIMEOUT = 15000;
@@ -134,9 +137,14 @@ const lobbyStatusEl = document.getElementById('lobby-status');
 const createRoomBtn = document.getElementById('create-room');
 const joinRoomBtn = document.getElementById('join-room');
 const joinCodeInput = document.getElementById('join-code');
+const createControlsEl = document.getElementById('create-controls');
 const roomInfoEl = document.getElementById('room-info');
 const roomCodeEl = document.getElementById('room-code');
-const copyCodeBtn = document.getElementById('copy-code');
+const roomQrEl = document.getElementById('room-qr');
+const roomQrHintEl = document.querySelector('.room-qr-hint');
+const inviteLinkInput = document.getElementById('invite-link');
+const copyLinkBtn = document.getElementById('copy-link');
+const shareLinkBtn = document.getElementById('share-link');
 
 const ERROR_MESSAGES = {
   'peer-unavailable': 'Room not found. Check the code and try again.',
@@ -158,6 +166,7 @@ function showLobby(message = '') {
   setLayout({ two: false, intro: MODES.online.intro, lobby: true });
   resetArena();
   roomInfoEl.hidden = true;
+  createControlsEl.hidden = false;
   createRoomBtn.disabled = false;
   joinRoomBtn.disabled = false;
   setLobbyStatus(message);
@@ -183,10 +192,62 @@ function createRoom() {
   joinRoomBtn.disabled = true;
   setLobbyStatus('Creating room…');
   net.host(code => {
-    roomCodeEl.textContent = code;
-    roomInfoEl.hidden = false;
+    showInvite(code);
     setLobbyStatus('Waiting for your opponent to join…');
   });
+}
+
+function inviteLink(code) {
+  const local = !location.protocol.startsWith('http') || ['localhost', '127.0.0.1'].includes(location.hostname);
+  const base = local ? PUBLIC_URL : location.origin + location.pathname;
+  return `${base}#join=${code}`;
+}
+
+function showInvite(code) {
+  const link = inviteLink(code);
+  roomCodeEl.textContent = code;
+  inviteLinkInput.value = link;
+  renderQr(link);
+  shareLinkBtn.hidden = typeof navigator.share !== 'function';
+  createControlsEl.hidden = true;
+  roomInfoEl.hidden = false;
+}
+
+function renderQr(text) {
+  const available = typeof qrcode === 'function';
+  roomQrEl.hidden = !available;
+  roomQrHintEl.hidden = !available;
+  if (!available) return;
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  roomQrEl.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+}
+
+async function copyInviteLink() {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(inviteLinkInput.value);
+    ok = true;
+  } catch {
+    // Clipboard API can be unavailable (e.g. file://); fall back to a selection copy.
+    inviteLinkInput.select();
+    ok = document.execCommand('copy');
+  }
+  copyLinkBtn.textContent = ok ? 'Copied!' : 'Copy failed';
+  setTimeout(() => (copyLinkBtn.textContent = 'Copy link'), 1500);
+}
+
+async function shareInviteLink() {
+  try {
+    await navigator.share({
+      title: '2048 online',
+      text: `Join my 2048 game! Room ${roomCodeEl.textContent}`,
+      url: inviteLinkInput.value,
+    });
+  } catch {
+    // User closed the share sheet; nothing to do.
+  }
 }
 
 function joinRoom() {
@@ -202,23 +263,6 @@ function joinRoom() {
   joinRoomBtn.disabled = true;
   setLobbyStatus('Connecting…');
   net.join(code);
-}
-
-function inviteText(code) {
-  if (location.protocol.startsWith('http')) {
-    return `${location.origin}${location.pathname}#join=${code}`;
-  }
-  return code;
-}
-
-async function copyRoomCode() {
-  try {
-    await navigator.clipboard.writeText(inviteText(roomCodeEl.textContent));
-    copyCodeBtn.textContent = 'Copied!';
-  } catch {
-    copyCodeBtn.textContent = 'Copy failed';
-  }
-  setTimeout(() => (copyCodeBtn.textContent = 'Copy'), 1500);
 }
 
 // Host only: begin a new match for both sides.
@@ -332,4 +376,6 @@ joinRoomBtn.addEventListener('click', joinRoom);
 joinCodeInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom();
 });
-copyCodeBtn.addEventListener('click', copyRoomCode);
+copyLinkBtn.addEventListener('click', copyInviteLink);
+shareLinkBtn.addEventListener('click', shareInviteLink);
+inviteLinkInput.addEventListener('focus', () => inviteLinkInput.select());

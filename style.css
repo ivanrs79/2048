@@ -394,11 +394,64 @@ body {
   outline: 2px solid var(--p1);
 }
 
+.create-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .room-info {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  width: 100%;
+}
+
+.room-code-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.room-qr {
+  width: 180px;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 6px;
+  line-height: 0;
+}
+
+.room-qr svg {
+  width: 100%;
+  height: auto;
+}
+
+.room-qr-hint {
+  font-size: 14px;
+  text-align: center;
+}
+
+.invite-link {
+  width: 100%;
+  padding: 6px 8px;
+  border: 2px solid #bbada0;
+  border-radius: var(--radius);
+  background: #faf8ef;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.invite-link:focus {
+  outline: none;
+  border-color: #8f7a66;
+}
+
+.share-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .room-label {

@@ -347,13 +347,20 @@ for (const btn of document.querySelectorAll('.mode-btn')) {
 newGameBtn.addEventListener('click', newGame);
 
 // Invite links look like index.html#join=ABCDE
-const invite = location.hash.match(/^#join=(\w+)$/);
-if (invite) {
+function joinFromInvite() {
+  const invite = location.hash.match(/^#join=(\w+)$/);
+  if (!invite) return false;
   history.replaceState(null, '', location.pathname + location.search);
+  leaveOnline();
   setMode('online');
   joinCodeInput.value = invite[1].toUpperCase();
   joinRoom();
-} else {
+  return true;
+}
+
+window.addEventListener('hashchange', joinFromInvite);
+
+if (!joinFromInvite()) {
   const saved = localStorage.getItem(MODE_KEY);
   setMode(MODES[saved] ? saved : 'solo', { restore: true });
 }
