@@ -555,7 +555,7 @@ body {
     gap: 16px;
   }
   .arena.versus .panel.me {
-    --board: 92vw;
+    --board: 96vw; /* full width of the versus container */
   }
   .arena.versus .panel.opponent {
     --board: 30vw;
