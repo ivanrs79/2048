@@ -314,6 +314,16 @@ function overlayFor(player) {
   if (!outcome) return null;
   if (outcome.left) {
     const who = outcome.name || 'your opponent';
+    if (outcome.reason === 'you-away') {
+      return player.remote
+        ? null
+        : { text: 'Match ended', sub: 'You were away for too long.', button: 'Back to lobby' };
+    }
+    if (outcome.reason === 'away') {
+      return player.remote
+        ? { text: 'Left' }
+        : { text: 'Opponent left', sub: `${outcome.name || 'Your opponent'} was away for too long.`, button: 'Back to lobby' };
+    }
     if (outcome.reason === 'timeout') {
       return player.remote
         ? { text: 'Offline' }

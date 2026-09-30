@@ -188,6 +188,11 @@ body {
   line-height: 1.5;
 }
 
+.keys.away {
+  color: var(--p2);
+  font-weight: bold;
+}
+
 /* ---------- Board ---------- */
 
 .board {

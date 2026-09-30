@@ -10,7 +10,10 @@
 //   rematch guest -> host   { round }
 //   hello   both            { round, name }   player name, sent at the start of each match
 //   ping    both            {}                heartbeat every HEARTBEAT_INTERVAL while connected
-//   bye     both            {}                "I'm leaving" (page closed/reloaded, or left the match)
+//   bye     both            { reason? }       "I'm leaving" (page closed/reloaded, or left the match);
+//                                             reason 'away' = "you were away too long, match over"
+//   away    both            { round }         I switched to another app / tab
+//   back    both            { round }         I'm back
 
 const PEER_PREFIX = 'web2048-room-';
 // Invite links point here when the page itself isn't reachable by others
@@ -23,6 +26,9 @@ const CONNECT_TIMEOUT = 15000;
 // so both sides send a heartbeat and give up after HEARTBEAT_TIMEOUT of silence.
 const HEARTBEAT_INTERVAL = 2000;
 const HEARTBEAT_TIMEOUT = 10000;
+// A browser in the background often keeps running (and sending heartbeats),
+// so switching away is announced explicitly and allowed for this long.
+const AWAY_TIMEOUT = 10000;
 const MATCH_SLOTS = 3; // waiting spots per rule set for random matchmaking
 const PROBE_TIMEOUT = 6000; // give up on a waiting spot that doesn't answer
 const WAITER_PROBE_INTERVAL = 5000;
@@ -102,7 +108,7 @@ class OnlineSession {
         this.peerSendsPings = true;
         return;
       }
-      if (msg && msg.type === 'bye') return this.lost('left');
+      if (msg && msg.type === 'bye') return this.lost(msg.reason === 'away' ? 'you-away' : 'left');
       this.emit('onMessage', msg);
     });
     conn.on('close', () => this.lost('left'));
@@ -124,11 +130,16 @@ class OnlineSession {
   // paused too; don't blame the opponent for that silence.
   resumed() {
     this.lastSeen = Date.now();
+    this.resumedAt = Date.now();
   }
 
   // reason: 'left' (they closed the connection or said bye) or 'timeout'
   lost(reason) {
     if (this.ended) return;
+    // If *we* were in the background (or only just came back), the opponent
+    // most likely gave up on us, not the other way round.
+    const weWereAway = document.hidden || Date.now() - (this.resumedAt || 0) < 5000;
+    if (reason !== 'you-away' && weWereAway && this.wentAway) reason = 'you-away';
     this.ended = true;
     clearInterval(this.heartbeat);
     this.emit('onDisconnect', reason);
@@ -584,7 +595,48 @@ function startOnlineRound() {
   beginOnlineMatch(seed, net.rules);
 }
 
+// ---------- Opponent switched to another app ----------
+
+let awayTick = null;
+
+function showOpponentStatus(text) {
+  const opponent = players.find(p => p.remote);
+  if (!opponent) return;
+  const keys = opponent.view.panelEl.querySelector('.keys');
+  keys.textContent = text || 'Live view';
+  keys.classList.toggle('away', Boolean(text));
+}
+
+function opponentAway() {
+  clearOpponentAway();
+  const deadline = Date.now() + AWAY_TIMEOUT;
+  const update = () => {
+    const secondsLeft = Math.ceil((deadline - Date.now()) / 1000);
+    if (secondsLeft <= 0) endBecauseAway();
+    else showOpponentStatus(`Away · ${secondsLeft}s`);
+  };
+  update();
+  awayTick = setInterval(update, 250);
+}
+
+function clearOpponentAway() {
+  clearInterval(awayTick);
+  awayTick = null;
+  showOpponentStatus(null);
+}
+
+function endBecauseAway() {
+  clearOpponentAway();
+  const name = net.opponentName;
+  net.send({ type: 'bye', reason: 'away' }); // they'll see "you were away too long" when they return
+  net.ended = true; // we've said bye ourselves; don't report this as a second disconnect
+  leaveOnline();
+  outcome = { left: true, reason: 'away', name };
+  players.forEach(p => refresh(p));
+}
+
 function beginOnlineMatch(seed, matchRules) {
+  clearOpponentAway();
   rules = matchRules;
   setLayout({
     versus: true,
@@ -652,6 +704,14 @@ const onlineHandlers = {
     }
     if (msg.round !== round || !opponent) return;
 
+    if (msg.type === 'away') {
+      if (!outcome) opponentAway();
+      return;
+    }
+    if (msg.type === 'back') {
+      clearOpponentAway();
+      return;
+    }
     if (msg.type === 'hello') {
       net.opponentName = displayName(msg.name);
       setOpponentName(net.opponentName);
@@ -678,6 +738,8 @@ const onlineHandlers = {
   },
 
   onDisconnect(reason = 'left') {
+    if (awayTick) reason = 'away'; // they went away and never came back
+    clearOpponentAway();
     const inMatch = players.length === 2;
     const name = net && net.opponentName;
     leaveOnline();
@@ -701,7 +763,17 @@ findMatchBtn.addEventListener('click', findMatch);
 // Closing or reloading the page: say bye so the opponent knows immediately.
 window.addEventListener('pagehide', () => leaveOnline());
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && net && net.connected) net.resumed();
+  if (!net || !net.connected) return;
+  const inMatch = players.length === 2 && !outcome;
+  if (document.hidden) {
+    if (inMatch) {
+      net.wentAway = true;
+      net.send({ type: 'away', round });
+    }
+  } else {
+    net.resumed();
+    if (inMatch) net.send({ type: 'back', round });
+  }
 });
 document.getElementById('play-bot-instead').addEventListener('click', playBotInstead);
 document.getElementById('keep-waiting').addEventListener('click', () => askAboutBotLater(LONELY_REPEAT));
