@@ -4,7 +4,7 @@
 // the browser's HTTP cache, which GitHub Pages lets keep files for 10 minutes;
 // unchanged files come back as a cheap 304.
 // Bump CACHE when the SHELL list changes.
-const CACHE = 'stone-clash-v3';
+const CACHE = 'stone-clash-v4';
 const SHELL = [
   './',
   'index.html',

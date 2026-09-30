@@ -16,6 +16,10 @@ const PUBLIC_URL = 'https://ivanrs79.github.io/2048/';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 5;
 const CONNECT_TIMEOUT = 15000;
+const MATCH_SLOTS = 3; // waiting spots per rule set for random matchmaking
+const PROBE_TIMEOUT = 6000; // give up on a waiting spot that doesn't answer
+const WAITER_PROBE_INTERVAL = 5000;
+const LONELY_AFTER = 20000; // suggest the bot if nobody shows up
 
 function makeRoomCode() {
   let code = '';
@@ -34,6 +38,9 @@ class OnlineSession {
     this.isHost = false;
     this.connected = false;
     this.closed = false;
+    this.extraPeers = []; // matchmaking may open more than one Peer
+    this.probeTimer = null;
+    this.probing = false;
   }
 
   host(onReady) {
@@ -70,15 +77,154 @@ class OnlineSession {
     }, CONNECT_TIMEOUT);
   }
 
-  attach(conn) {
+  attach(conn, { alreadyOpen = false } = {}) {
     this.conn = conn;
-    conn.on('open', () => {
-      this.connected = true;
-      this.emit('onConnect');
-    });
+    if (!alreadyOpen) {
+      conn.on('open', () => {
+        this.connected = true;
+        this.emit('onConnect');
+      });
+    }
     conn.on('data', msg => this.emit('onMessage', msg));
     conn.on('close', () => this.emit('onDisconnect'));
     conn.on('error', () => this.emit('onDisconnect'));
+  }
+
+  // ---------- Random matchmaking ----------
+  //
+  // Each rule set has MATCH_SLOTS well-known peer ids ("waiting spots"). The
+  // PeerJS server lets only one peer hold an id, so holding a slot id means
+  // "I'm waiting for an opponent". To find a match, try to take each slot in
+  // turn: if it's free, wait there; if it's taken, connect to whoever holds
+  // it. The waiter is the host of the match; once matched it disconnects from
+  // the PeerJS server (which frees the slot id) while keeping the game
+  // connection open.
+
+  // Claim-first: taking a free spot is instant, and being refused means
+  // someone is waiting there, so connect to them. (Probing an *empty* spot is
+  // slow: the PeerJS server holds the offer ~5 s before reporting nobody's
+  // there, so only waiters do that, in the background.)
+  async matchmake(rules) {
+    this.rules = rules;
+    this.code = null;
+    while (!this.closed && !this.connected) {
+      try {
+        let probe = null;
+        for (let k = 0; k < MATCH_SLOTS && !this.closed && !this.connected; k++) {
+          const slot = await this.openPeer(slotId(rules, k));
+          if (slot) {
+            if (probe) probe.destroy();
+            this.waitInSlot(slot, rules, k);
+            return;
+          }
+          probe = probe || (await this.openPeer());
+          if (!probe) return; // closed while opening
+          if (await this.probeSlots(probe, rules, k + 1, k)) return;
+          // That waiter was busy (just matched with someone else): try the next spot.
+        }
+        if (probe) probe.destroy();
+      } catch (err) {
+        this.emit('onError', err.type || 'network');
+        return;
+      }
+      await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000)); // all spots busy; retry
+    }
+  }
+
+  // Resolves with an open Peer, or null if the id is taken (or we were closed).
+  openPeer(id) {
+    return new Promise((resolve, reject) => {
+      const peer = id ? new Peer(id) : new Peer();
+      this.extraPeers.push(peer);
+      peer.once('open', () => {
+        if (this.closed) {
+          peer.destroy();
+          resolve(null);
+        } else {
+          resolve(peer);
+        }
+      });
+      peer.once('error', err => {
+        if (!peer.open) {
+          peer.destroy();
+          if (err.type === 'unavailable-id') resolve(null);
+          else reject(err);
+        }
+      });
+    });
+  }
+
+  // Connect to whoever holds `targetId`. Resolves with { conn, first } once
+  // the waiter confirms the match by sending its 'start' message, or null if
+  // nobody is there, they're busy, or it takes too long.
+  tryConnect(peer, targetId) {
+    return new Promise(resolve => {
+      let done = false;
+      const conn = peer.connect(targetId, { reliable: true, serialization: 'json' });
+      const finish = result => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        peer.off('error', onError);
+        if (!result) conn.close();
+        resolve(result);
+      };
+      const onError = err => {
+        if (err.type !== 'peer-unavailable' || String(err.message).includes(targetId)) finish(null);
+      };
+      peer.on('error', onError);
+      conn.on('data', msg => {
+        if (!done && msg && msg.type === 'start') finish({ conn, first: msg });
+      });
+      conn.on('close', () => finish(null));
+      const timer = setTimeout(() => finish(null), PROBE_TIMEOUT);
+    });
+  }
+
+  async probeSlots(peer, rules, count, from = 0) {
+    for (let k = from; k < count && !this.closed && !this.connected; k++) {
+      const found = await this.tryConnect(peer, slotId(rules, k));
+      if (found && !this.connected && !this.closed) {
+        this.peer = peer;
+        this.matched(found.conn, false, found.first);
+        return true;
+      }
+      if (found) found.conn.close();
+    }
+    return false;
+  }
+
+  waitInSlot(peer, rules, k) {
+    this.peer = peer;
+    peer.on('connection', conn => {
+      conn.on('open', () => {
+        if (this.connected || this.probing || this.closed) conn.close(); // busy
+        else this.matched(conn, true);
+      });
+    });
+    peer.on('error', err => {
+      if (!this.connected && !['peer-unavailable'].includes(err.type)) this.emit('onError', err.type);
+    });
+    // Two players could end up waiting in different slots and never meet, so
+    // a waiter regularly checks the slots below its own.
+    if (k > 0) {
+      this.probeTimer = setInterval(async () => {
+        if (this.connected || this.probing || this.closed) return;
+        this.probing = true;
+        await this.probeSlots(peer, rules, k);
+        this.probing = false;
+      }, WAITER_PROBE_INTERVAL);
+    }
+  }
+
+  matched(conn, asHost, firstMessage) {
+    clearInterval(this.probeTimer);
+    this.isHost = asHost;
+    this.connected = true;
+    this.attach(conn, { alreadyOpen: true });
+    if (asHost) this.peer.disconnect(); // free the slot id; the game connection stays open
+    this.emit('onConnect');
+    if (firstMessage) this.emit('onMessage', firstMessage);
   }
 
   send(msg) {
@@ -91,8 +237,14 @@ class OnlineSession {
 
   close() {
     this.closed = true;
+    clearInterval(this.probeTimer);
     if (this.peer) this.peer.destroy();
+    for (const peer of this.extraPeers) peer.destroy();
   }
+}
+
+function slotId(rules, k) {
+  return `${PEER_PREFIX}mm-${rules}-${k}`;
 }
 
 // Read-only stand-in for the opponent's Game2048, fed by 'state' messages.
@@ -137,6 +289,7 @@ const lobbyStatusEl = document.getElementById('lobby-status');
 const createRoomBtn = document.getElementById('create-room');
 const joinRoomBtn = document.getElementById('join-room');
 const joinCodeInput = document.getElementById('join-code');
+const findMatchBtn = document.getElementById('find-match');
 const createControlsEl = document.getElementById('create-controls');
 const roomInfoEl = document.getElementById('room-info');
 const roomCodeEl = document.getElementById('room-code');
@@ -167,9 +320,44 @@ function showLobby(message = '') {
   resetArena();
   roomInfoEl.hidden = true;
   createControlsEl.hidden = false;
-  createRoomBtn.disabled = false;
-  joinRoomBtn.disabled = false;
+  setLobbyButtons(true);
+  findMatchBtn.textContent = 'Find a match';
+  clearTimeout(lonelyTimer);
   setLobbyStatus(message);
+}
+
+let lonelyTimer = null;
+
+// Enables or disables every lobby action except cancelling a search.
+function setLobbyButtons(enabled) {
+  createRoomBtn.disabled = !enabled;
+  joinRoomBtn.disabled = !enabled;
+  findMatchBtn.disabled = !enabled;
+}
+
+function searching() {
+  return net && net.code === null && !net.connected && !net.closed;
+}
+
+// Quick match: toggles between "Find a match" and "Cancel".
+function findMatch() {
+  if (searching()) {
+    leaveOnline();
+    showLobby('');
+    return;
+  }
+  if (!peerAvailable()) return;
+  leaveOnline();
+  net = new OnlineSession(onlineHandlers);
+  setLobbyButtons(false);
+  findMatchBtn.disabled = false;
+  findMatchBtn.textContent = 'Cancel';
+  setLobbyStatus('Looking for an opponent…');
+  clearTimeout(lonelyTimer);
+  lonelyTimer = setTimeout(() => {
+    if (searching()) setLobbyStatus("Still looking… Nobody else is searching right now. Keep waiting, or try the Bot tab.");
+  }, LONELY_AFTER);
+  net.matchmake(document.querySelector('input[name="quick-rules"]:checked').value);
 }
 
 function peerAvailable() {
@@ -188,8 +376,7 @@ function createRoom() {
   leaveOnline();
   net = new OnlineSession(onlineHandlers);
   net.rules = document.querySelector('input[name="online-rules"]:checked').value;
-  createRoomBtn.disabled = true;
-  joinRoomBtn.disabled = true;
+  setLobbyButtons(false);
   setLobbyStatus('Creating room…');
   net.host(code => {
     showInvite(code);
@@ -259,8 +446,7 @@ function joinRoom() {
   if (!peerAvailable()) return;
   leaveOnline();
   net = new OnlineSession(onlineHandlers);
-  createRoomBtn.disabled = true;
-  joinRoomBtn.disabled = true;
+  setLobbyButtons(false);
   setLobbyStatus('Connecting…');
   net.join(code);
 }
@@ -277,7 +463,7 @@ function beginOnlineMatch(seed, matchRules) {
   rules = matchRules;
   setLayout({
     versus: true,
-    intro: `${RULES[rules]} <span class="room-tag">Room ${net.code}</span>`,
+    intro: `${RULES[rules]} <span class="room-tag">${net.code ? `Room ${net.code}` : 'Random opponent'}</span>`,
   });
   resetArena();
   const me = addPlayer({
@@ -371,6 +557,7 @@ const onlineHandlers = {
 };
 
 createRoomBtn.addEventListener('click', createRoom);
+findMatchBtn.addEventListener('click', findMatch);
 joinRoomBtn.addEventListener('click', joinRoom);
 joinCodeInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom();

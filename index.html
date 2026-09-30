@@ -51,6 +51,15 @@
     </section>
 
     <section class="lobby" id="lobby" hidden>
+      <div class="lobby-card quick-card">
+        <h2>Quick match</h2>
+        <p>Play someone random who's looking for a game right now.</p>
+        <div class="rules-pick">
+          <label><input type="radio" name="quick-rules" value="race"><span>Race</span></label>
+          <label><input type="radio" name="quick-rules" value="attack" checked><span>Attack</span></label>
+        </div>
+        <button class="btn" id="find-match">Find a match</button>
+      </div>
       <div class="lobby-card">
         <h2>Create a room</h2>
         <div class="create-controls" id="create-controls">

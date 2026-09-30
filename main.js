@@ -134,7 +134,7 @@ const RULES = {
 const MODES = {
   solo: { intro: 'Join the tiles, get to <strong>2048!</strong>' },
   bot: { intro: 'Play against the computer.' },
-  online: { intro: 'Play against a friend over the internet.' },
+  online: { intro: 'Play online against a random opponent or a friend.' },
 };
 
 const containerEl = document.getElementById('container');
