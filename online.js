@@ -292,6 +292,7 @@ function beginOnlineMatch(seed, matchRules) {
     remote: true,
   });
   players.forEach(p => refresh(p));
+  fitBoard();
   sendState(me, []);
 }
 

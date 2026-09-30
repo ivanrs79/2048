@@ -548,17 +548,37 @@ body {
   .lobby {
     grid-template-columns: 1fr;
   }
-  /* Phones: opponent becomes a compact strip above your full-width board. */
+  /* Phones: opponent becomes a compact strip above your full-width board,
+     and the page chrome is tightened so the board gets as much height as possible. */
+  .container.versus .title {
+    font-size: 40px;
+  }
+  .container.versus .toolbar {
+    margin: 10px 0;
+  }
+  .container.versus .intro {
+    font-size: 14px;
+  }
   .arena.versus {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 10px;
   }
   .arena.versus .panel.me {
-    --board: 96vw; /* full width of the versus container */
+    --board: 96vw; /* full width of the versus container; fitBoard() may shrink it */
+  }
+  .arena.versus .panel.me .board {
+    margin: 0 auto;
+  }
+  .arena.versus .panel.me .panel-header {
+    margin-bottom: 6px;
+  }
+  .arena.versus .panel.me .keys {
+    margin-top: 6px;
+    font-size: 13px;
   }
   .arena.versus .panel.opponent {
-    --board: 30vw;
+    --board: 26vw;
     order: -1;
     display: grid;
     grid-template-columns: auto 1fr;

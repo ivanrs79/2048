@@ -219,7 +219,27 @@ function startSolo(restore = false) {
     hint: 'Use <strong>arrow keys</strong> or <strong>WASD</strong> to move. On touch screens, swipe.',
   });
   refresh(player);
+  fitBoard();
 }
+
+// On short screens (e.g. older phones), shrink your board so all of it fits
+// without scrolling. The CSS size is the upper limit; this only ever shrinks.
+const MIN_BOARD = 220;
+
+function fitBoard() {
+  const me = players.find(p => !p.remote);
+  if (!me) return;
+  const { panelEl, boardEl } = me.view;
+  panelEl.style.removeProperty('--board');
+  const rect = boardEl.getBoundingClientRect();
+  const below = panelEl.querySelector('.keys').offsetHeight + 16;
+  const available = Math.floor(window.innerHeight - (rect.top + window.scrollY) - below);
+  if (available < rect.width) {
+    panelEl.style.setProperty('--board', `${Math.max(MIN_BOARD, available)}px`);
+  }
+}
+
+window.addEventListener('resize', fitBoard);
 
 function newGame() {
   if (mode === 'online') requestRematch();
