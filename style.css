@@ -353,13 +353,14 @@ body {
   to { opacity: 1; }
 }
 
-.footer {
-  margin-top: 32px;
+.lobby-privacy {
+  grid-column: 1 / -1;
+  margin: 0;
   text-align: center;
   font-size: 13px;
 }
 
-.footer a {
+.lobby-privacy a {
   color: #a39588;
 }
 
