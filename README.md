@@ -26,7 +26,9 @@ No build step: open `index.html` in a browser. Online mode needs an internet con
 - `main.js`: rendering, input, solo mode
 - `online.js`: PeerJS networking and lobby
 - `bot.js`: computer opponent (expectimax search) and its setup screen
+- `scan.js`: camera QR scanner for joining rooms (BarcodeDetector, with jsQR as fallback)
+- `wordfilter.js`: basic offensive-name filter
 - `index.html`, `style.css`: page and styles
 - `manifest.webmanifest`, `sw.js`, `icons/`: installable app + offline support
 - `privacy.html`: privacy policy
-- `vendor/`: [PeerJS](https://github.com/peers/peerjs) 1.5.4 and [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 1.4.4 (both MIT), bundled so the app works offline and can be packaged for app stores
+- `vendor/`: [PeerJS](https://github.com/peers/peerjs) 1.5.4 and [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 1.4.4 (both MIT) and [jsQR](https://github.com/cozmo/jsQR) 1.4.0 (Apache 2.0), bundled so the app works offline and can be packaged for app stores

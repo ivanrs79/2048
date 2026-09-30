@@ -8,6 +8,7 @@ class BoardView {
     this.tilesEl = panelEl.querySelector('.tiles');
     this.overlayEl = panelEl.querySelector('.overlay');
     this.overlayText = panelEl.querySelector('.overlay-text');
+    this.overlaySub = panelEl.querySelector('.overlay-sub');
     this.keepGoingBtn = panelEl.querySelector('.keep-going');
     this.tryAgainBtn = panelEl.querySelector('.try-again');
     this.scoreEl = panelEl.querySelector('.score');
@@ -102,14 +103,17 @@ class BoardView {
     el.style.setProperty('--c', tile.c);
   }
 
-  // state: null to hide, or { text, won, keepGoing, button }
+  // state: null to hide, or { text, sub?, won?, keepGoing?, button? } (no button = none shown)
   setOverlay(state) {
     this.overlayEl.classList.toggle('visible', !!state);
     if (!state) return;
     this.overlayEl.classList.toggle('won', !!state.won);
     this.overlayText.textContent = state.text;
     this.keepGoingBtn.hidden = !state.keepGoing;
-    this.tryAgainBtn.textContent = state.button;
+    this.overlaySub.textContent = state.sub || '';
+    this.overlaySub.hidden = !state.sub;
+    this.tryAgainBtn.hidden = !state.button;
+    this.tryAgainBtn.textContent = state.button || '';
   }
 }
 
@@ -248,7 +252,10 @@ function fitBoard() {
 window.addEventListener('resize', fitBoard);
 
 function newGame() {
-  if (mode === 'online') requestRematch();
+  if (mode === 'online') {
+    if (net && net.connected) requestRematch();
+    else showLobby(''); // the opponent left: back to the lobby
+  }
   else if (mode === 'bot') startBotMatch();
   else startSolo();
 }
@@ -305,6 +312,11 @@ function overlayFor(player) {
     return null;
   }
   if (!outcome) return null;
+  if (outcome.left) {
+    return player.remote
+      ? { text: 'Left' }
+      : { text: 'Opponent left', sub: `${outcome.name || 'Your opponent'} left the game.`, button: 'Back to lobby' };
+  }
   if (outcome.draw) return { text: 'Draw!', button: 'Rematch' };
   if (outcome.winner === player.index) return { text: 'Winner!', won: true, button: 'Rematch' };
   return { text: game.over ? 'Stuck!' : 'Too slow!', button: 'Rematch' };

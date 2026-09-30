@@ -296,6 +296,7 @@ const joinCodeInput = document.getElementById('join-code');
 const findMatchBtn = document.getElementById('find-match');
 const lonelyEl = document.getElementById('quick-lonely');
 const playNameInput = document.getElementById('player-name');
+const nameWarningEl = document.getElementById('name-warning');
 const createControlsEl = document.getElementById('create-controls');
 const roomInfoEl = document.getElementById('room-info');
 const roomCodeEl = document.getElementById('room-code');
@@ -392,8 +393,23 @@ function cleanName(raw) {
   return Array.from(name).slice(0, NAME_MAX).join('').trim(); // Array.from keeps emoji whole
 }
 
+// The name we send: empty if it's blocked by the word filter.
 function myName() {
-  return cleanName(playNameInput.value);
+  const name = cleanName(playNameInput.value);
+  return isOffensiveName(name) ? '' : name;
+}
+
+// Never trust the other side: clean and filter names we receive too.
+function displayName(raw) {
+  const name = cleanName(raw);
+  return name && !isOffensiveName(name) ? name : null;
+}
+
+function updateNameWarning() {
+  const name = cleanName(playNameInput.value);
+  const blocked = Boolean(name) && isOffensiveName(name);
+  nameWarningEl.hidden = !blocked;
+  playNameInput.classList.toggle('invalid', blocked);
 }
 
 function setOpponentName(name) {
@@ -466,16 +482,42 @@ async function copyInviteLink() {
   setTimeout(() => (copyLinkBtn.textContent = 'Copy link'), 1500);
 }
 
+function inviteMessage() {
+  return `Join my 2048 Stone Clash game! Room ${roomCodeEl.textContent}`;
+}
+
 async function shareInviteLink() {
   try {
-    await navigator.share({
-      title: '2048 online',
-      text: `Join my 2048 game! Room ${roomCodeEl.textContent}`,
-      url: inviteLinkInput.value,
-    });
+    await navigator.share({ title: '2048 Stone Clash', text: inviteMessage(), url: inviteLinkInput.value });
   } catch {
     // User closed the share sheet; nothing to do.
   }
+}
+
+// Opens WhatsApp (app or web) with the invite ready to send.
+function shareOnWhatsApp() {
+  const text = `${inviteMessage()} ${inviteLinkInput.value}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+}
+
+// ---------- Join by scanning a QR code ----------
+
+// Accepts an invite link (…#join=CODE) or a bare room code.
+function roomCodeFrom(text) {
+  const value = String(text).trim();
+  const match = value.match(/[#?&]join=([A-Za-z0-9]+)/) || value.match(/^([A-Za-z0-9]+)$/);
+  const code = match && match[1].toUpperCase();
+  return code && code.length === CODE_LENGTH && [...code].every(ch => CODE_CHARS.includes(ch)) ? code : null;
+}
+
+function scanToJoin() {
+  openScanner(text => {
+    const code = roomCodeFrom(text);
+    if (!code) return "That QR code isn't a 2048 Stone Clash invite. Try another.";
+    joinCodeInput.value = code;
+    joinRoom();
+    return true;
+  });
 }
 
 function joinRoom() {
@@ -569,7 +611,7 @@ const onlineHandlers = {
     if (msg.round !== round || !opponent) return;
 
     if (msg.type === 'hello') {
-      net.opponentName = cleanName(msg.name) || null;
+      net.opponentName = displayName(msg.name);
       setOpponentName(net.opponentName);
       return;
     }
@@ -594,8 +636,16 @@ const onlineHandlers = {
   },
 
   onDisconnect() {
+    const inMatch = players.length === 2;
+    const name = net && net.opponentName;
     leaveOnline();
-    showLobby('Your opponent left the game.');
+    if (!inMatch) {
+      showLobby('Your opponent left.');
+      return;
+    }
+    // Keep both boards on screen and say what happened; play stops.
+    outcome = { left: true, name };
+    players.forEach(p => refresh(p));
   },
 
   onError(type) {
@@ -609,12 +659,18 @@ findMatchBtn.addEventListener('click', findMatch);
 document.getElementById('play-bot-instead').addEventListener('click', playBotInstead);
 document.getElementById('keep-waiting').addEventListener('click', () => askAboutBotLater(LONELY_REPEAT));
 playNameInput.value = localStorage.getItem(NAME_KEY) || '';
-playNameInput.addEventListener('input', () => localStorage.setItem(NAME_KEY, myName()));
-playNameInput.addEventListener('change', () => (playNameInput.value = myName()));
+playNameInput.addEventListener('input', () => {
+  localStorage.setItem(NAME_KEY, cleanName(playNameInput.value));
+  updateNameWarning();
+});
+playNameInput.addEventListener('change', () => (playNameInput.value = cleanName(playNameInput.value)));
+updateNameWarning();
 joinRoomBtn.addEventListener('click', joinRoom);
 joinCodeInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom();
 });
 copyLinkBtn.addEventListener('click', copyInviteLink);
 shareLinkBtn.addEventListener('click', shareInviteLink);
+document.getElementById('whatsapp-link').addEventListener('click', shareOnWhatsApp);
+document.getElementById('scan-qr').addEventListener('click', scanToJoin);
 inviteLinkInput.addEventListener('focus', () => inviteLinkInput.select());
