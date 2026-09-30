@@ -133,6 +133,7 @@ const RULES = {
 
 const MODES = {
   solo: { intro: 'Join the tiles, get to <strong>2048!</strong>' },
+  bot: { intro: 'Play against the computer.' },
   online: { intro: 'Play against a friend over the internet.' },
 };
 
@@ -170,20 +171,24 @@ function setMode(newMode, { restore = false } = {}) {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   }
   if (mode === 'online') showLobby();
+  else if (mode === 'bot') showBotSetup();
   else startSolo(restore);
 }
 
-function setLayout({ versus, intro, lobby = false }) {
+// show: which main area is visible: 'arena' (boards), 'lobby' (online) or 'bot' (bot setup)
+function setLayout({ versus, intro, show = 'arena' }) {
   containerEl.classList.toggle('versus', versus);
   arenaEl.classList.toggle('versus', versus);
   introEl.innerHTML = intro;
-  lobbyEl.hidden = !lobby;
-  arenaEl.hidden = lobby;
-  newGameBtn.hidden = lobby;
+  lobbyEl.hidden = show !== 'lobby';
+  botSetupEl.hidden = show !== 'bot';
+  arenaEl.hidden = show !== 'arena';
+  newGameBtn.hidden = show !== 'arena';
   newGameBtn.textContent = mode === 'online' ? 'Restart' : 'New Game';
 }
 
 function resetArena() {
+  stopBot();
   arenaEl.innerHTML = '';
   players = [];
   outcome = null;
@@ -244,23 +249,34 @@ window.addEventListener('resize', fitBoard);
 
 function newGame() {
   if (mode === 'online') requestRematch();
+  else if (mode === 'bot') startBotMatch();
   else startSolo();
 }
 
 // ---------- Turn handling ----------
 
+// From keyboard / swipe input: only your own board can be moved.
 function move(player, direction) {
-  if (outcome || player.remote) return;
+  if (!player.remote) playMove(player, direction);
+}
+
+// Applies a move for any player (you, or the bot) and resolves its effects.
+function playMove(player, direction) {
+  if (outcome) return;
   const result = player.game.move(direction);
   if (!result.moved) return;
 
+  const stones = rules === 'attack' ? result.merges.filter(v => v >= ATTACK_MIN).length : 0;
+  const opponent = players[1 - player.index];
   if (net) {
-    const stones = rules === 'attack' ? result.merges.filter(v => v >= ATTACK_MIN).length : 0;
     onlineMoved(player, result.removed, stones);
+  } else if (opponent) {
+    // Bot match: both boards are local.
+    if (stones > 0) opponent.game.addStones(stones);
+    judge();
   }
 
   refresh(player, result.removed);
-  const opponent = players[1 - player.index];
   if (opponent) refresh(opponent);
 }
 

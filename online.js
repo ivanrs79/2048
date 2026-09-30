@@ -163,7 +163,7 @@ function setLobbyStatus(text) {
 }
 
 function showLobby(message = '') {
-  setLayout({ versus: false, intro: MODES.online.intro, lobby: true });
+  setLayout({ versus: false, intro: MODES.online.intro, show: 'lobby' });
   resetArena();
   roomInfoEl.hidden = true;
   createControlsEl.hidden = false;

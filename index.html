@@ -19,6 +19,7 @@
       <h1 class="title">2048</h1>
       <nav class="modes" id="modes">
         <button class="mode-btn" data-mode="solo">Solo</button>
+        <button class="mode-btn" data-mode="bot">Bot</button>
         <button class="mode-btn" data-mode="online">Online</button>
       </nav>
     </header>
@@ -29,6 +30,25 @@
     </div>
 
     <div class="arena" id="arena"></div>
+
+    <section class="lobby bot-setup" id="bot-setup" hidden>
+      <div class="lobby-card">
+        <h2>Play the computer</h2>
+        <p>Same tiles for both of you. Pick the rules and how tough your opponent is.</p>
+        <span class="pick-label">Rules</span>
+        <div class="rules-pick">
+          <label><input type="radio" name="bot-rules" value="race" checked><span>Race</span></label>
+          <label><input type="radio" name="bot-rules" value="attack"><span>Attack</span></label>
+        </div>
+        <span class="pick-label">Opponent</span>
+        <div class="rules-pick">
+          <label><input type="radio" name="bot-level" value="easy"><span>Easy</span></label>
+          <label><input type="radio" name="bot-level" value="medium" checked><span>Medium</span></label>
+          <label><input type="radio" name="bot-level" value="hard"><span>Hard</span></label>
+        </div>
+        <button class="btn" id="start-bot">Start</button>
+      </div>
+    </section>
 
     <section class="lobby" id="lobby" hidden>
       <div class="lobby-card">
@@ -102,6 +122,7 @@
   <script src="vendor/qrcode.js"></script>
   <script src="game.js"></script>
   <script src="online.js"></script>
+  <script src="bot.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

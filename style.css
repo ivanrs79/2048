@@ -353,6 +353,17 @@ body {
   to { opacity: 1; }
 }
 
+.bot-setup {
+  grid-template-columns: 1fr;
+}
+
+.pick-label {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: -6px;
+}
+
 .lobby-privacy {
   grid-column: 1 / -1;
   margin: 0;
