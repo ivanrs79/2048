@@ -494,12 +494,6 @@ async function shareInviteLink() {
   }
 }
 
-// Opens WhatsApp (app or web) with the invite ready to send.
-function shareOnWhatsApp() {
-  const text = `${inviteMessage()} ${inviteLinkInput.value}`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-}
-
 // ---------- Join by scanning a QR code ----------
 
 // Accepts an invite link (…#join=CODE) or a bare room code.
@@ -671,6 +665,5 @@ joinCodeInput.addEventListener('keydown', e => {
 });
 copyLinkBtn.addEventListener('click', copyInviteLink);
 shareLinkBtn.addEventListener('click', shareInviteLink);
-document.getElementById('whatsapp-link').addEventListener('click', shareOnWhatsApp);
 document.getElementById('scan-qr').addEventListener('click', scanToJoin);
 inviteLinkInput.addEventListener('focus', () => inviteLinkInput.select());

@@ -442,15 +442,6 @@ body {
   font-weight: bold;
 }
 
-.btn-whatsapp {
-  background: #25d366;
-  color: #fff;
-}
-
-.btn-whatsapp:hover {
-  background: #1ebe5a;
-}
-
 /* ---------- QR scanner ---------- */
 
 .scanner {
