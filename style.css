@@ -361,6 +361,67 @@ body {
   grid-column: 1 / -1;
 }
 
+.quick-lonely {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: #faf8ef;
+  animation: fade-in 300ms ease;
+}
+
+.quick-lonely p {
+  font-weight: bold;
+}
+
+.btn-quiet {
+  background: transparent;
+  color: #8f7a66;
+  box-shadow: inset 0 0 0 2px #8f7a66;
+}
+
+.btn-quiet:hover {
+  background: #f3ece4;
+}
+
+.name-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.name-row .pick-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.name-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  padding: 8px 10px;
+  border: 2px solid #bbada0;
+  border-radius: var(--radius);
+  background: #faf8ef;
+  color: #3c3a32;
+  font-family: inherit;
+  font-size: 16px; /* 16px+ stops phones zooming in on focus */
+  font-weight: bold;
+}
+
+.name-input::placeholder {
+  color: #c9bdb1;
+  font-weight: normal;
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: #8f7a66;
+}
+
 .pick-label {
   font-size: 12px;
   font-weight: bold;

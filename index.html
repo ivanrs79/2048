@@ -51,6 +51,10 @@
     </section>
 
     <section class="lobby" id="lobby" hidden>
+      <label class="name-row">
+        <span class="pick-label">Your name</span>
+        <input class="name-input" id="player-name" maxlength="16" placeholder="Shown to your opponent" autocomplete="nickname" spellcheck="false">
+      </label>
       <div class="lobby-card quick-card">
         <h2>Quick match</h2>
         <p>Play someone random who's looking for a game right now.</p>
@@ -59,6 +63,13 @@
           <label><input type="radio" name="quick-rules" value="attack" checked><span>Attack</span></label>
         </div>
         <button class="btn" id="find-match">Find a match</button>
+        <div class="quick-lonely" id="quick-lonely" hidden>
+          <p>Nobody's around right now. Play the bot instead?</p>
+          <div class="share-buttons">
+            <button class="btn btn-small" id="play-bot-instead">Play the bot</button>
+            <button class="btn btn-small btn-quiet" id="keep-waiting">Keep waiting</button>
+          </div>
+        </div>
       </div>
       <div class="lobby-card">
         <h2>Create a room</h2>

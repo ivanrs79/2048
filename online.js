@@ -8,6 +8,7 @@
 //   attack  both            { round, count }
 //   result  host -> guest   { round, winner: 'host' | 'guest' | 'draw' }
 //   rematch guest -> host   { round }
+//   hello   both            { round, name }   player name, sent at the start of each match
 
 const PEER_PREFIX = 'web2048-room-';
 // Invite links point here when the page itself isn't reachable by others
@@ -19,7 +20,10 @@ const CONNECT_TIMEOUT = 15000;
 const MATCH_SLOTS = 3; // waiting spots per rule set for random matchmaking
 const PROBE_TIMEOUT = 6000; // give up on a waiting spot that doesn't answer
 const WAITER_PROBE_INTERVAL = 5000;
-const LONELY_AFTER = 20000; // suggest the bot if nobody shows up
+const LONELY_AFTER = 20000; // offer the bot if nobody shows up
+const LONELY_REPEAT = 45000; // ask again after "Keep waiting"
+const NAME_KEY = 'game2048-name';
+const NAME_MAX = 16;
 
 function makeRoomCode() {
   let code = '';
@@ -290,6 +294,8 @@ const createRoomBtn = document.getElementById('create-room');
 const joinRoomBtn = document.getElementById('join-room');
 const joinCodeInput = document.getElementById('join-code');
 const findMatchBtn = document.getElementById('find-match');
+const lonelyEl = document.getElementById('quick-lonely');
+const playNameInput = document.getElementById('player-name');
 const createControlsEl = document.getElementById('create-controls');
 const roomInfoEl = document.getElementById('room-info');
 const roomCodeEl = document.getElementById('room-code');
@@ -323,6 +329,7 @@ function showLobby(message = '') {
   setLobbyButtons(true);
   findMatchBtn.textContent = 'Find a match';
   clearTimeout(lonelyTimer);
+  lonelyEl.hidden = true;
   setLobbyStatus(message);
 }
 
@@ -353,11 +360,45 @@ function findMatch() {
   findMatchBtn.disabled = false;
   findMatchBtn.textContent = 'Cancel';
   setLobbyStatus('Looking for an opponent…');
+  askAboutBotLater(LONELY_AFTER);
+  net.matchmake(quickRules());
+}
+
+function quickRules() {
+  return document.querySelector('input[name="quick-rules"]:checked').value;
+}
+
+// If nobody shows up, offer a bot match instead (the search keeps running).
+function askAboutBotLater(ms) {
   clearTimeout(lonelyTimer);
+  lonelyEl.hidden = true;
   lonelyTimer = setTimeout(() => {
-    if (searching()) setLobbyStatus("Still looking… Nobody else is searching right now. Keep waiting, or try the Bot tab.");
-  }, LONELY_AFTER);
-  net.matchmake(document.querySelector('input[name="quick-rules"]:checked').value);
+    if (searching()) lonelyEl.hidden = false;
+  }, ms);
+}
+
+function playBotInstead() {
+  const matchRules = quickRules();
+  leaveOnline();
+  setMode('bot');
+  document.querySelector(`input[name="bot-rules"][value="${matchRules}"]`).checked = true;
+  startBotMatch();
+}
+
+// ---------- Player names ----------
+
+function cleanName(raw) {
+  const name = String(raw || '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+  return Array.from(name).slice(0, NAME_MAX).join('').trim(); // Array.from keeps emoji whole
+}
+
+function myName() {
+  return cleanName(playNameInput.value);
+}
+
+function setOpponentName(name) {
+  const opponent = players.find(p => p.remote);
+  if (opponent) opponent.view.panelEl.querySelector('.player-name').textContent = name || 'Opponent';
 }
 
 function peerAvailable() {
@@ -473,13 +514,14 @@ function beginOnlineMatch(seed, matchRules) {
   });
   addPlayer({
     game: new RemoteBoard(4),
-    name: 'Opponent',
+    name: net.opponentName || 'Opponent',
     hint: 'Live view',
     remote: true,
   });
   players.forEach(p => refresh(p));
   fitBoard();
   sendState(me, []);
+  net.send({ type: 'hello', round, name: myName() });
 }
 
 function sendState(player, removed) {
@@ -526,6 +568,12 @@ const onlineHandlers = {
     }
     if (msg.round !== round || !opponent) return;
 
+    if (msg.type === 'hello') {
+      net.opponentName = cleanName(msg.name) || null;
+      setOpponentName(net.opponentName);
+      return;
+    }
+
     if (msg.type === 'state') {
       opponent.game.apply(msg);
       if (net.isHost) hostJudge();
@@ -558,6 +606,11 @@ const onlineHandlers = {
 
 createRoomBtn.addEventListener('click', createRoom);
 findMatchBtn.addEventListener('click', findMatch);
+document.getElementById('play-bot-instead').addEventListener('click', playBotInstead);
+document.getElementById('keep-waiting').addEventListener('click', () => askAboutBotLater(LONELY_REPEAT));
+playNameInput.value = localStorage.getItem(NAME_KEY) || '';
+playNameInput.addEventListener('input', () => localStorage.setItem(NAME_KEY, myName()));
+playNameInput.addEventListener('change', () => (playNameInput.value = myName()));
 joinRoomBtn.addEventListener('click', joinRoom);
 joinCodeInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') joinRoom();
