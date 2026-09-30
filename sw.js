@@ -1,7 +1,10 @@
 // Offline support. Network-first so players always get the latest version
 // when online; when offline, the last version seen is served from the cache.
+// Network requests revalidate with the server ('no-cache') instead of using
+// the browser's HTTP cache, which GitHub Pages lets keep files for 10 minutes;
+// unchanged files come back as a cheap 304.
 // Bump CACHE when the SHELL list changes.
-const CACHE = 'stone-clash-v1';
+const CACHE = 'stone-clash-v2';
 const SHELL = [
   './',
   'index.html',
@@ -19,7 +22,9 @@ const SHELL = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(cache => cache.addAll(SHELL.map(url => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -35,8 +40,13 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
 
+  // A navigation Request can't be re-created with options, so fetch its URL.
+  const fresh = request.mode === 'navigate'
+    ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
+    : fetch(request, { cache: 'no-cache' });
+
   event.respondWith(
-    fetch(request)
+    fresh
       .then(response => {
         if (response.ok) {
           const copy = response.clone();
