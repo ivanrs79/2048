@@ -7,9 +7,9 @@
 // grows with samples^depth, which matters on older phones); randomness:
 // chance of playing a random legal move.
 const BOT_LEVELS = {
-  easy: { label: 'Easy', delay: 1100, depth: 0, samples: 0, randomness: 0.3 },
-  medium: { label: 'Medium', delay: 750, depth: 1, samples: 6, randomness: 0.03 },
-  hard: { label: 'Hard', delay: 450, depth: 1, samples: 6, randomness: 0 },
+  easy: { label: 'Easy', delay: 1375, depth: 0, samples: 0, randomness: 0.3 },
+  medium: { label: 'Medium', delay: 938, depth: 1, samples: 6, randomness: 0.03 },
+  hard: { label: 'Hard', delay: 563, depth: 1, samples: 6, randomness: 0 },
 };
 const BOT_SETTINGS_KEY = 'game2048-bot';
 const BOT_DIRECTIONS = ['up', 'down', 'left', 'right'];
