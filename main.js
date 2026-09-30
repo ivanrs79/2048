@@ -313,6 +313,12 @@ function overlayFor(player) {
   }
   if (!outcome) return null;
   if (outcome.left) {
+    const who = outcome.name || 'your opponent';
+    if (outcome.reason === 'timeout') {
+      return player.remote
+        ? { text: 'Offline' }
+        : { text: 'Connection lost', sub: `Lost the connection to ${who}.`, button: 'Back to lobby' };
+    }
     return player.remote
       ? { text: 'Left' }
       : { text: 'Opponent left', sub: `${outcome.name || 'Your opponent'} left the game.`, button: 'Back to lobby' };

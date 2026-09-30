@@ -9,6 +9,8 @@
 //   result  host -> guest   { round, winner: 'host' | 'guest' | 'draw' }
 //   rematch guest -> host   { round }
 //   hello   both            { round, name }   player name, sent at the start of each match
+//   ping    both            {}                heartbeat every HEARTBEAT_INTERVAL while connected
+//   bye     both            {}                "I'm leaving" (page closed/reloaded, or left the match)
 
 const PEER_PREFIX = 'web2048-room-';
 // Invite links point here when the page itself isn't reachable by others
@@ -17,6 +19,10 @@ const PUBLIC_URL = 'https://ivanrs79.github.io/2048/';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 5;
 const CONNECT_TIMEOUT = 15000;
+// WebRTC often doesn't report a closed or reloaded tab (or only much later),
+// so both sides send a heartbeat and give up after HEARTBEAT_TIMEOUT of silence.
+const HEARTBEAT_INTERVAL = 2000;
+const HEARTBEAT_TIMEOUT = 10000;
 const MATCH_SLOTS = 3; // waiting spots per rule set for random matchmaking
 const PROBE_TIMEOUT = 6000; // give up on a waiting spot that doesn't answer
 const WAITER_PROBE_INTERVAL = 5000;
@@ -86,12 +92,46 @@ class OnlineSession {
     if (!alreadyOpen) {
       conn.on('open', () => {
         this.connected = true;
+        this.startHeartbeat();
         this.emit('onConnect');
       });
     }
-    conn.on('data', msg => this.emit('onMessage', msg));
-    conn.on('close', () => this.emit('onDisconnect'));
-    conn.on('error', () => this.emit('onDisconnect'));
+    conn.on('data', msg => {
+      this.lastSeen = Date.now();
+      if (msg && msg.type === 'ping') {
+        this.peerSendsPings = true;
+        return;
+      }
+      if (msg && msg.type === 'bye') return this.lost('left');
+      this.emit('onMessage', msg);
+    });
+    conn.on('close', () => this.lost('left'));
+    conn.on('error', () => this.lost('left'));
+  }
+
+  startHeartbeat() {
+    this.lastSeen = Date.now();
+    // Only time out opponents that send pings themselves, so an opponent on
+    // an older version of the game isn't dropped after 10 seconds.
+    this.peerSendsPings = false;
+    this.heartbeat = setInterval(() => {
+      this.send({ type: 'ping' });
+      if (this.peerSendsPings && Date.now() - this.lastSeen > HEARTBEAT_TIMEOUT) this.lost('timeout');
+    }, HEARTBEAT_INTERVAL);
+  }
+
+  // When our own app was in the background its timers and messages were
+  // paused too; don't blame the opponent for that silence.
+  resumed() {
+    this.lastSeen = Date.now();
+  }
+
+  // reason: 'left' (they closed the connection or said bye) or 'timeout'
+  lost(reason) {
+    if (this.ended) return;
+    this.ended = true;
+    clearInterval(this.heartbeat);
+    this.emit('onDisconnect', reason);
   }
 
   // ---------- Random matchmaking ----------
@@ -226,6 +266,7 @@ class OnlineSession {
     this.isHost = asHost;
     this.connected = true;
     this.attach(conn, { alreadyOpen: true });
+    this.startHeartbeat();
     if (asHost) this.peer.disconnect(); // free the slot id; the game connection stays open
     this.emit('onConnect');
     if (firstMessage) this.emit('onMessage', firstMessage);
@@ -240,10 +281,17 @@ class OnlineSession {
   }
 
   close() {
+    if (this.connected && !this.closed && !this.ended) {
+      try {
+        this.conn.send({ type: 'bye' }); // let the opponent know right away
+      } catch {}
+    }
     this.closed = true;
     clearInterval(this.probeTimer);
-    if (this.peer) this.peer.destroy();
-    for (const peer of this.extraPeers) peer.destroy();
+    clearInterval(this.heartbeat);
+    // A short delay gives the 'bye' a moment to go out before the connection closes.
+    const peers = [this.peer, ...this.extraPeers].filter(Boolean);
+    setTimeout(() => peers.forEach(peer => peer.destroy()), 200);
   }
 }
 
@@ -629,16 +677,16 @@ const onlineHandlers = {
     }
   },
 
-  onDisconnect() {
+  onDisconnect(reason = 'left') {
     const inMatch = players.length === 2;
     const name = net && net.opponentName;
     leaveOnline();
     if (!inMatch) {
-      showLobby('Your opponent left.');
+      showLobby(reason === 'timeout' ? 'Lost the connection to your opponent.' : 'Your opponent left.');
       return;
     }
     // Keep both boards on screen and say what happened; play stops.
-    outcome = { left: true, name };
+    outcome = { left: true, reason, name };
     players.forEach(p => refresh(p));
   },
 
@@ -650,6 +698,11 @@ const onlineHandlers = {
 
 createRoomBtn.addEventListener('click', createRoom);
 findMatchBtn.addEventListener('click', findMatch);
+// Closing or reloading the page: say bye so the opponent knows immediately.
+window.addEventListener('pagehide', () => leaveOnline());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && net && net.connected) net.resumed();
+});
 document.getElementById('play-bot-instead').addEventListener('click', playBotInstead);
 document.getElementById('keep-waiting').addEventListener('click', () => askAboutBotLater(LONELY_REPEAT));
 playNameInput.value = localStorage.getItem(NAME_KEY) || '';
